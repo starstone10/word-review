@@ -4,7 +4,7 @@
 
 ---
 
-## ✨ 主要功能
+## 主要功能
 
 - **词书管理**  
   支持上传 TXT 文件（奇数行单词，偶数行释义），自动添加新词并生成音频。
@@ -44,7 +44,7 @@ streamlit run word.py
 
 ---
 
-## 📁 项目结构
+## 项目结构
 ```
 .
 ├── word.py                # 主程序
@@ -56,7 +56,7 @@ streamlit run word.py
 
 ---
 
-## 🧩 使用说明
+## 使用说明
 
 ### 首次使用
 - 应用会自动创建 `korean_vocab.json` 和 `audio/` 文件夹。
@@ -84,7 +84,7 @@ streamlit run word.py
 
 ---
 
-## 🧪 依赖与版本
+## 依赖与版本
 
 - Python 3.8+
 - Streamlit 1.36.0+
