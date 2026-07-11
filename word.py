@@ -35,11 +35,12 @@ def save_data(data):
     with open(DATA_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
 
-# ================= 核心算法 (艾宾浩斯简化版) =================
+# ================= 遗忘曲线 (斐波那契数列) =================
 def calculate_next_review(word_data,ease):
     """根据回答情况计算下次复习时间和间隔"""
     now = datetime.now()
-    plan=[0,1,2,4,15,30]
+    plan=[0,1,1,2,3,5,8,13,21,34,55]
+
     interval = word_data.get("interval",0)
 
     if ease<0.5:
@@ -69,6 +70,7 @@ def get_audio(word):
         tts = gTTS(word, lang='ko')
         tts.save(file_path)
 
+#庆祝小彩蛋
 def congratulation(first_day,today,streak):
     fday=first_day[-2:]
     fmonth=first_day[5:7]
@@ -333,8 +335,8 @@ else:
                         
                         
 
-            # --- 阶段 3: 拼写练习 ---
-        if not queue and writequeue:
+        # --- 阶段 3: 拼写练习 ---
+        elif writequeue:
                 current_word = writequeue[0]
                 word_info = data["words"][current_word]
                 st.markdown(f"<p style='font-size: 1rem;color=#2e86c1;'>{st.session_state.totalword-len(writequeue)+1}/{st.session_state.totalword}</p>", unsafe_allow_html=True)
@@ -360,11 +362,9 @@ else:
                                 else:
                                     data["words"].pop(current_word)
                                 save_data(data)
-                            # 完成该词，移出队列
                             save_data(data)
                             st.success("정답입니다! (正确!)")
                             st.balloons()
-                            # 延迟一点跳转体验更好，但在streamlit里直接rerun最快
                             st.rerun()
                         else:
                             st.session_state.review=True#显示单词
