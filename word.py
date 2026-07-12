@@ -218,12 +218,12 @@ if not st.session_state.in_review_mode:
         if st.button("🚀 시작 (开始复习)", use_container_width=True, type="primary"):
             st.session_state.in_review_mode = True
             st.session_state.review_queue = due_words[:]
-            st.session_state.queue = due_words[:]
-            st.session_state.writequeue = due_words[:]
+            st.session_state.queue = due_words[:20]
+            st.session_state.writequeue = due_words[:20]
             st.session_state.current_word = None
             st.session_state.show_answer = False
             st.session_state.review=False
-            st.session_state.totalword=len(due_words)
+            st.session_state.totalword=len(st.session_state.queue)
             st.session_state.easequeue={i:0 for i in st.session_state.review_queue}
             st.session_state.renew=False
             st.rerun()
@@ -252,12 +252,12 @@ else:
         # 使用 Session State 管理当前复习状态
         if 'review_queue' not in st.session_state:
             st.session_state.review_queue = due_words[:]
-            st.session_state.queue = due_words[:]
-            st.session_state.writequeue = due_words[:]
+            st.session_state.queue = due_words[:20]
+            st.session_state.writequeue = due_words[:20]
             st.session_state.current_word = None
             st.session_state.show_answer = False
             st.session_state.review=False
-            st.session_state.totalword=len(due_words)
+            st.session_state.totalword=len(st.session_state.queue)
             st.session_state.easequeue={i:0 for i in st.session_state.review_queue}
             st.session_state.renew=False
 
@@ -272,6 +272,7 @@ else:
             word_info = data["words"][current_word]
 
             if st.session_state.show_answer and queue[-1]==queue[0] and len(queue)!=1:
+                print(len(queue),st.session_state.totalword)
                 st.markdown(f"<p style='font-size: 1rem;color=#2e86c1;'>{st.session_state.totalword-len(queue)+2}/{st.session_state.totalword}</p>", unsafe_allow_html=True)
             else:
                 st.markdown(f"<p style='font-size: 1rem;color=#2e86c1;'>{st.session_state.totalword-len(queue)+1}/{st.session_state.totalword}</p>", unsafe_allow_html=True)
@@ -302,7 +303,7 @@ else:
             # --- 阶段 2: 查看释义 & 笔记 ---
             if st.session_state.show_answer:
                     st.markdown(f"<p style='text-align:center; font-size: 3rem;color: #555;font-weight: bold;'>{current_word}</p>", unsafe_allow_html=True)
-                    st.markdown(f"<p style='text-align:center; font-size: 2.5rem;color: #2e86c1;'>{';'.join(word_info['meaning'])}</p>", unsafe_allow_html=True)
+                    st.markdown(f"<p style='text-align:center; font-size: 2rem;color: #2e86c1;'>{';'.join(word_info['meaning'])}</p>", unsafe_allow_html=True)
 
                     audio_path = f"audio/{current_word}.mp3"  # 确保音频文件存在
                     
@@ -341,10 +342,7 @@ else:
                                 st.session_state.show_answer = False
                                 queue.pop(0)
                                 st.rerun()
-
                     
-                        
-                        
 
         # --- 阶段 3: 拼写练习 ---
         elif writequeue:
@@ -413,7 +411,7 @@ else:
                     st.rerun()
         else:
             # 队列空了
-            st.success("오늘 복습할 단어가 없어요.（今天没有要复习的单词了。）")
+            st.success("이 그룹의 단어가 완료되었습니다.（本组单词已完成。）")
             if st.button("홈으로 돌아가기 (返回首页)"):
                 # 清理 session state
                 for k in list(st.session_state.keys()):
