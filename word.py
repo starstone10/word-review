@@ -4,6 +4,8 @@ import os
 from datetime import datetime, timedelta
 import io
 from gtts import gTTS
+import base64
+import time
 
 # ================= 配置与初始化 =================
 DATA_FILE = "korean_vocab.json"
@@ -93,6 +95,15 @@ def congratulation(first_day,today,streak):
     else:
             return False
 
+def audio_autoplay_html(file_path):
+    with open(file_path, "rb") as f:
+        audio_bytes = f.read()
+    b64 = base64.b64encode(audio_bytes).decode()
+    return f'''
+        <audio autoplay>
+            <source src="data:audio/mp3;base64,{b64}" type="audio/mp3">
+        </audio>
+    '''
 # ================= 页面主逻辑 =================
 st.set_page_config(page_title="한국어 단어 암기", page_icon="🇰🇷",initial_sidebar_state="collapsed" )
 #st.title("🇰🇷 한국어 단어 암기 (韩语背词)")
@@ -115,15 +126,19 @@ if data["last_login"] != today_str:
         data["first_day"]=today_str
     data["last_login"] = today_str
     save_data(data)
-    
+
+# ================= 状态管理 =================
+# 使用 session_state 记录当前是在主页还是复习页
+if "in_review_mode" not in st.session_state:
+    st.session_state.in_review_mode = False
 
 # 侧边栏：上传功能
-if "in_review_mode" not in st.session_state:
+if not st.session_state.in_review_mode:
     st.sidebar.header("📂 단어장 가져오기 (导入词书)")
     uploaded_file = st.sidebar.file_uploader("TXT 파일 업로드(上传TXT文件)", type=["txt"], help="형식: 홀수 줄은 단어, 짝수 줄은 뜻（格式：奇数行是单词，偶数行是释义）")
 
     if uploaded_file is not None:
-        try:
+        if 1:
             content = uploaded_file.getvalue().decode("utf-8")
             lines = [line.strip() for line in content.splitlines() if line.strip()]
             
@@ -154,14 +169,8 @@ if "in_review_mode" not in st.session_state:
             save_data(data)
             st.sidebar.success(f"성공! {new_count}개의 단어를 추가했습니다.（成功！添加了{new_count}个单词。）")
             
-        except Exception as e:
+        else:#except Exception as e:
             st.sidebar.error(f"불러오기 실패: {str(e)}")
-
-
-# ================= 状态管理 =================
-# 使用 session_state 记录当前是在主页还是复习页
-if "in_review_mode" not in st.session_state:
-    st.session_state.in_review_mode = False
 
 # ================= 页面 1：主页 (Dashboard) =================
 # 获取今日待复习列表
@@ -226,11 +235,8 @@ else:
     st.markdown("""
     <style>
         button[data-key="⬅️ 홈으로 (返回首页)"] {
-            margin-top: -20px;
-        }
-        hr {
-            margin-top: -10px;
-            margin-bottom: 0px;
+            margin-top: 0px;
+            margin-bottom:0px;
         }
     </style>
     """, unsafe_allow_html=True)
@@ -254,9 +260,6 @@ else:
             st.session_state.totalword=len(due_words)
             st.session_state.easequeue={i:0 for i in st.session_state.review_queue}
             st.session_state.renew=False
-            
-            #st.session_state.spelling_mode = False
-            #st.session_state.wrong_spelling_list = [] # 拼写错误的词放这里重练
 
         queue = st.session_state.queue
         writequeue=st.session_state.writequeue
@@ -300,6 +303,14 @@ else:
             if st.session_state.show_answer:
                     st.markdown(f"<p style='text-align:center; font-size: 3rem;color: #555;font-weight: bold;'>{current_word}</p>", unsafe_allow_html=True)
                     st.markdown(f"<p style='text-align:center; font-size: 2.5rem;color: #2e86c1;'>{';'.join(word_info['meaning'])}</p>", unsafe_allow_html=True)
+
+                    audio_path = f"audio/{current_word}.mp3"  # 确保音频文件存在
+                    
+                    if not os.path.exists(audio_path):
+                        get_audio(current_word)
+
+                    # 自动播放
+                    st.markdown(audio_autoplay_html(f"audio/{current_word}.mp3"), unsafe_allow_html=True)
 
                     st.audio(f"audio/{current_word}.mp3", format='audio/mp3')
                     
@@ -348,8 +359,10 @@ else:
                         submitted = st.form_submit_button("제출 (提交)", use_container_width=True)
 
                     if submitted:
+                        #播放音频
                         if user_input.strip() == current_word.strip():
                             # 正确逻辑
+                            st.markdown(audio_autoplay_html(f"audio/{current_word}.mp3"), unsafe_allow_html=True)
                             writequeue.pop(0)
                             if st.session_state.renew:#上次拼写错误
                                 writequeue.append(current_word)
@@ -365,15 +378,20 @@ else:
                             save_data(data)
                             st.success("정답입니다! (正确!)")
                             st.balloons()
+                            time.sleep(2)
                             st.rerun()
+                            
                         else:
                             st.session_state.review=True#显示单词
                             st.session_state.easequeue[current_word]+=0.4
                             st.rerun()
 
+                        
+
                     st.columns([1,3,1])[1].image("keyboard.jpg")
                     
                 else:
+                    st.markdown(audio_autoplay_html(f"audio/{current_word}.mp3"), unsafe_allow_html=True)
                     st.markdown(f"<p style='text-align:center; font-size:4rem; color: #2e86c1;font-weight:bold;'>{current_word}</p>", unsafe_allow_html=True)
                     if st.button(f"다시 맞춤법（重新拼写）", use_container_width=True):
                         st.session_state.review=False
