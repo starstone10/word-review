@@ -135,7 +135,7 @@ if "in_review_mode" not in st.session_state:
 # 侧边栏：上传功能
 if not st.session_state.in_review_mode:
     st.sidebar.header("📂 단어장 가져오기 (导入词书)")
-    uploaded_file = st.sidebar.file_uploader("TXT 파일 업로드(上传TXT文件)", type=["txt"], help="형식: 홀수 줄은 단어, 짝수 줄은 뜻（格式：奇数行是单词，偶数行是释义）")
+    uploaded_file = st.sidebar.file_uploader("TXT 파일 업로드(上传TXT文件)", type=["txt"], help="형식: 홀수 줄은 단어, 짝수 줄은 뜻\n（格式：奇数行是单词，偶数行是释义）")
 
     if uploaded_file is not None:
         if 1:
@@ -167,7 +167,7 @@ if not st.session_state.in_review_mode:
                             data["words"][word]["interval"]=0
             
             save_data(data)
-            st.sidebar.success(f"성공! {new_count}개의 단어를 추가했습니다.（成功！添加了{new_count}个单词。）")
+            st.sidebar.success(f"성공! {new_count}개의 단어를 추가했습니다.\n（成功！添加了{new_count}个单词。）")
             
         else:#except Exception as e:
             st.sidebar.error(f"불러오기 실패: {str(e)}")
@@ -197,11 +197,11 @@ if not st.session_state.in_review_mode:
         if cong:
             st.divider()
             if cong=="year":
-                st.success("1년 버텼어!맛있는 거 먹고 자기한테 보상해!.（坚持了一年！吃顿好的奖励一下自己吧！）")
+                st.success("1년 버텼어!맛있는 거 먹고 자기한테 보상해!.\n（坚持了一年！吃顿好的奖励一下自己吧！）")
             elif cong=="month":
-                st.success("한 달 버텼어!맛있는 거 먹고 자기한테 보상해!.（坚持了一个月！吃顿好的奖励一下自己吧！）")
+                st.success("한 달 버텼어!맛있는 거 먹고 자기한테 보상해!.\n（坚持了一个月！吃顿好的奖励一下自己吧！）")
             else:
-                st.success(f"단어 외우기 {data['streak']} 일째입니다!.（今天是坚持背单词的第{data['streak']}天！吃顿好的奖励一下自己吧！）")
+                st.success(f"단어 외우기 {data['streak']} 일째입니다!.\n（今天是坚持背单词的第{data['streak']}天！吃顿好的奖励一下自己吧！）")
 
             if st.button("네, 알겠습니다 (我知道了)"):
                 cong=False
@@ -215,31 +215,28 @@ if not st.session_state.in_review_mode:
     if due_words:
         reviewbutton=st.empty()
         reviewbutton.markdown(f"### 📝 오늘 복습할 단어(今日要复习的单词): **{len(due_words)}개**")
-        if st.button("🚀 시작 (开始复习)", use_container_width=True, type="primary"):
+        if st.button("🚀 시작 (开始复习)", use_container_width=True, type="primary") :
+            if "review_queue" not in st.session_state:
+                st.session_state.review_queue = due_words[:]
+                st.session_state.queue = due_words[:20]
+                st.session_state.writequeue = due_words[:20]
+                st.session_state.current_word = None
+                st.session_state.show_answer = False
+                st.session_state.review=False
+                st.session_state.totalword=len(st.session_state.queue)
+                st.session_state.easequeue={i:0 for i in st.session_state.review_queue}
+                st.session_state.renew=False
+            
+            print(st.session_state.queue)
+            print(st.session_state.review_queue)
+                
             st.session_state.in_review_mode = True
-            st.session_state.review_queue = due_words[:]
-            st.session_state.queue = due_words[:20]
-            st.session_state.writequeue = due_words[:20]
-            st.session_state.current_word = None
-            st.session_state.show_answer = False
-            st.session_state.review=False
-            st.session_state.totalword=len(st.session_state.queue)
-            st.session_state.easequeue={i:0 for i in st.session_state.review_queue}
-            st.session_state.renew=False
             st.rerun()
     else:
         st.success("🎉 오늘의 복습을 모두 마쳤습니다! (今日复习已完成！)")
 
 # ================= 页面 2：复习页 (Review) =================
 else:
-    st.markdown("""
-    <style>
-        button[data-key="⬅️ 홈으로 (返回首页)"] {
-            margin-top: 0px;
-            margin-bottom:0px;
-        }
-    </style>
-    """, unsafe_allow_html=True)
 
     # 顶部返回按钮
     if st.button("⬅️ 홈으로 (返回首页)"):
@@ -248,19 +245,7 @@ else:
 
         
     # 开始复习流程
-    if due_words:
-        # 使用 Session State 管理当前复习状态
-        if 'review_queue' not in st.session_state:
-            st.session_state.review_queue = due_words[:]
-            st.session_state.queue = due_words[:20]
-            st.session_state.writequeue = due_words[:20]
-            st.session_state.current_word = None
-            st.session_state.show_answer = False
-            st.session_state.review=False
-            st.session_state.totalword=len(st.session_state.queue)
-            st.session_state.easequeue={i:0 for i in st.session_state.review_queue}
-            st.session_state.renew=False
-
+    if due_words
         queue = st.session_state.queue
         writequeue=st.session_state.writequeue
         st.divider()
