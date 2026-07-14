@@ -6,6 +6,7 @@ import io
 from gtts import gTTS
 import base64
 import time
+import streamlit.components.v1 as components
 
 # ================= 配置与初始化 =================
 DATA_FILE = "korean_vocab.json"
@@ -14,13 +15,14 @@ DATA_FILE = "korean_vocab.json"
 # 默认数据结构
 DEFAULT_DATA = {
     "words": {}, 
-    # 结构: { "word": { "meaning": "...", "note": "", "next_review": "2024-01-01", "interval": 0} }
+    # 结构: { "word": { "meaning": "...", "note": "", "next_review": "2024-01-01", "interval": -1} }
     "streak": 0,          
     "last_login": None,   
     "today_reviewed": [],
     "had_reviewed":0,
     "totalstreak":0,
-    "first_day":None
+    "first_day":None,
+    "new_words":0
 }
 
 def load_data():
@@ -41,7 +43,7 @@ def save_data(data):
 def calculate_next_review(word_data,ease):
     """根据回答情况计算下次复习时间和间隔"""
     now = datetime.now()
-    plan=[0,1,1,2,3,5,8,13,21,34,55]
+    plan=[1,2,3,5,8,13,21,34,55]
 
     interval = word_data.get("interval",0)
 
@@ -95,6 +97,7 @@ def congratulation(first_day,today,streak):
     else:
             return False
 
+#音频自动播放
 def audio_autoplay_html(file_path):
     with open(file_path, "rb") as f:
         audio_bytes = f.read()
@@ -151,8 +154,8 @@ if not st.session_state.in_review_mode:
                         data["words"][word] = {
                             "meaning": [meaning],
                             "note": "",
-                            "next_review": today_str, # 新词今天就要背
-                            "interval": 0
+                            "next_review": None, 
+                            "interval": -1
                         }
                         new_count += 1
                         get_audio(word)
@@ -163,8 +166,8 @@ if not st.session_state.in_review_mode:
                                 newmeaning=False
                         if newmeaning:
                             data["words"][word]["meaning"].append(meaning)
-                            data["words"][word]["next_review"]=today_str# 新词今天就要背
-                            data["words"][word]["interval"]=0
+                            data["words"][word]["next_review"]=None
+                            data["words"][word]["interval"]=-1
             
             save_data(data)
             st.sidebar.success(f"성공! {new_count}개의 단어를 추가했습니다.\n（成功！添加了{new_count}个单词。）")
@@ -175,9 +178,14 @@ if not st.session_state.in_review_mode:
 # ================= 页面 1：主页 (Dashboard) =================
 # 获取今日待复习列表
 due_words = []
+new_words = data["new_words"]
 for w, info in data["words"].items():
-    if info["next_review"] <= today_str and w not in data.get("today_reviewed", []):
+    if info["interval"]==-1 and new_words<=20 and w not in data.get("today_reviewed", []):#一天最多背20个生词
+        new_words+=1
         due_words.append(w)
+    elif info["next_review"] <= today_str and w not in data.get("today_reviewed", []):
+        due_words.append(w)
+save_data(data)
         
 if not st.session_state.in_review_mode:
     st.title("🇰🇷 한국어 단어 암기 (韩语背词)")
@@ -226,9 +234,6 @@ if not st.session_state.in_review_mode:
                 st.session_state.totalword=len(st.session_state.queue)
                 st.session_state.easequeue={i:0 for i in st.session_state.review_queue}
                 st.session_state.renew=False
-            
-            print(st.session_state.queue)
-            print(st.session_state.review_queue)
                 
             st.session_state.in_review_mode = True
             st.rerun()
@@ -237,18 +242,31 @@ if not st.session_state.in_review_mode:
 
 # ================= 页面 2：复习页 (Review) =================
 else:
-
+    st.markdown("""
+        <style>
+        .block-container {
+        padding-top: 3rem;
+        padding-bottom: 1rem;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+    
     # 顶部返回按钮
     if st.button("⬅️ 홈으로 (返回首页)"):
+        if not st.session_state.writequeue:
+            # 清理 session state
+            for k in list(st.session_state.keys()):
+                del st.session_state[k]
         st.session_state.in_review_mode = False
         st.rerun()
 
         
     # 开始复习流程
-    if due_words
+    if due_words:
         queue = st.session_state.queue
         writequeue=st.session_state.writequeue
-        st.divider()
+        # 完全替代 st.divider()
+        st.markdown('<hr style="margin-top: 10px; margin-bottom: 10px;">', unsafe_allow_html=True)
         st.subheader("복습(复习)")
 
         
@@ -257,7 +275,6 @@ else:
             word_info = data["words"][current_word]
 
             if st.session_state.show_answer and queue[-1]==queue[0] and len(queue)!=1:
-                print(len(queue),st.session_state.totalword)
                 st.markdown(f"<p style='font-size: 1rem;color=#2e86c1;'>{st.session_state.totalword-len(queue)+2}/{st.session_state.totalword}</p>", unsafe_allow_html=True)
             else:
                 st.markdown(f"<p style='font-size: 1rem;color=#2e86c1;'>{st.session_state.totalword-len(queue)+1}/{st.session_state.totalword}</p>", unsafe_allow_html=True)
@@ -270,7 +287,7 @@ else:
                     c1, c2 = st.columns(2)
                     with c1:
                         if st.button("✅ 알아요 (认识)", use_container_width=True):
-                            # 认识 -> 显示释义，进入拼写准备
+                            # 认识 -> 显示释义
                             st.session_state.show_answer = True
                             #st.rerun()
                     with c2:
@@ -287,7 +304,7 @@ else:
             
             # --- 阶段 2: 查看释义 & 笔记 ---
             if st.session_state.show_answer:
-                    st.markdown(f"<p style='text-align:center; font-size: 3rem;color: #555;font-weight: bold;'>{current_word}</p>", unsafe_allow_html=True)
+                    st.markdown(f"<p style='text-align:center; font-size: 3rem;color: #555;font-weight: bold;margin-bottom: 0px'>{current_word}</p>", unsafe_allow_html=True)
                     st.markdown(f"<p style='text-align:center; font-size: 2rem;color: #2e86c1;'>{';'.join(word_info['meaning'])}</p>", unsafe_allow_html=True)
 
                     audio_path = f"audio/{current_word}.mp3"  # 确保音频文件存在
@@ -301,32 +318,37 @@ else:
                     st.audio(f"audio/{current_word}.mp3", format='audio/mp3')
                     
                     # 编辑笔记
-                    new_note = st.text_area("노트 편집 (编辑笔记)", value=word_info.get("note", ""), key=f"note_{current_word}")
-                    if new_note != word_info.get("note", ""):
-                        data["words"][current_word]["note"] = new_note
-                        save_data(data)
+                    with st.form(key=current_word, clear_on_submit=True):
+                        new_note = st.text_area("노트 편집 (编辑笔记)", value=word_info.get("note", ""), key=f"note_{current_word}",height=100)
 
-                    if queue[-1]!=current_word or len(queue)==1:
-                        c1,c2=st.columns(2)
-                        with c1:
-                            if st.button("❌ 잘못 기억하다 (记错了)", use_container_width=True):
-                                st.session_state.show_answer = False
-                                queue.pop(0)
-                                queue.append(current_word)
-                                st.session_state.easequeue[current_word]+=0.4
-                                st.rerun()
-                                
-                        with c2:
-                            if st.button("➡️ 다음(下一个)", use_container_width=True, type="primary"):
-                                st.session_state.show_answer = False
-                                queue.pop(0)
-                                st.rerun()
+                        if queue[-1]!=current_word or len(queue)==1:
+                            c1,c2=st.columns(2)
+                            with c1:
+                                if st.form_submit_button("❌ 잘못 기억하다 (记错了)", use_container_width=True):
+                                    st.session_state.show_answer = False
+                                    queue.pop(0)
+                                    queue.append(current_word)
+                                    st.session_state.easequeue[current_word]+=0.4
+                                    data["words"][current_word]["note"] = new_note
+                                    save_data(data)
+                                    st.rerun()
+                                    
+                            with c2:
+                                if st.form_submit_button("➡️ 다음(下一个)", use_container_width=True, type="primary"):
+                                    st.session_state.show_answer = False
+                                    queue.pop(0)
+                                    data["words"][current_word]["note"] = new_note
+                                    save_data(data)
+                                    st.rerun()
 
-                    else:
-                        if st.button("➡️ 다음(下一个)", use_container_width=True, type="primary"):
-                                st.session_state.show_answer = False
-                                queue.pop(0)
-                                st.rerun()
+                        else:
+                            if st.form_submit_button("➡️ 다음(下一个)", use_container_width=True, type="primary"):
+                                    st.session_state.show_answer = False
+                                    queue.pop(0)
+                                    data["words"][current_word]["note"] = new_note
+                                    save_data(data)
+                                    st.rerun()
+
                     
 
         # --- 阶段 3: 拼写练习 ---
@@ -341,8 +363,21 @@ else:
                         user_input = st.text_input("단어를 입력하세요 (请输入单词)：", key=f"input_{current_word}")
                         submitted = st.form_submit_button("제출 (提交)", use_container_width=True)
 
+                        #聚焦到输入框======================================================================================（待修改）
+
+                        components.html(
+                                        f"""
+                                            <script>      
+                                                var batsn = window.parent.document.querySelector('[aria-label="단어를 입력하세요 (请输入单词)："]');
+                                                batsn.focus();
+                                            </script>
+                                        """,
+                                        height=0
+                                    )
+
+                        #===================================================================================================
+
                     if submitted:
-                        #播放音频
                         if user_input.strip() == current_word.strip():
                             # 正确逻辑
                             st.markdown(audio_autoplay_html(f"audio/{current_word}.mp3"), unsafe_allow_html=True)
@@ -397,12 +432,7 @@ else:
         else:
             # 队列空了
             st.success("이 그룹의 단어가 완료되었습니다.（本组单词已完成。）")
-            if st.button("홈으로 돌아가기 (返回首页)"):
-                # 清理 session state
-                for k in list(st.session_state.keys()):
-                    del st.session_state[k]
-                st.session_state.in_review_mode = False
-                st.rerun()
+            
 
     else:
         st.info("🎉 오늘의 복습을 모두 마쳤습니다! (今日复习已完成！)")
