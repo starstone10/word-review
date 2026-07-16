@@ -7,6 +7,7 @@ from gtts import gTTS
 import base64
 import time
 import streamlit.components.v1 as components
+from mutagen.mp3 import MP3
 
 # ================= 配置与初始化 =================
 DATA_FILE = "korean_vocab.json"
@@ -47,7 +48,7 @@ def calculate_next_review(word_data,ease):
 
     interval = word_data.get("interval",0)
 
-    if ease<0.5:
+    if ease<1:
         if interval!=len(plan)-1:
             interval=interval+1
         else:
@@ -55,7 +56,7 @@ def calculate_next_review(word_data,ease):
             save_data(data)
             return False
     else:
-        interval=max(0,interval-int(ease/0.5))
+        interval=max(0,interval-int(ease))
         
 
     next_date = now + timedelta(days=plan[interval])
@@ -141,7 +142,7 @@ if not st.session_state.in_review_mode:
     uploaded_file = st.sidebar.file_uploader("TXT 파일 업로드(上传TXT文件)", type=["txt"], help="형식: 홀수 줄은 단어, 짝수 줄은 뜻\n（格式：奇数行是单词，偶数行是释义）")
 
     if uploaded_file is not None:
-        if 1:
+        try:
             content = uploaded_file.getvalue().decode("utf-8")
             lines = [line.strip() for line in content.splitlines() if line.strip()]
             
@@ -172,7 +173,7 @@ if not st.session_state.in_review_mode:
             save_data(data)
             st.sidebar.success(f"성공! {new_count}개의 단어를 추가했습니다.\n（成功！添加了{new_count}个单词。）")
             
-        else:#except Exception as e:
+        except Exception as e:
             st.sidebar.error(f"불러오기 실패: {str(e)}")
 
 # ================= 页面 1：主页 (Dashboard) =================
@@ -313,9 +314,9 @@ else:
                         get_audio(current_word)
 
                     # 自动播放
-                    st.markdown(audio_autoplay_html(f"audio/{current_word}.mp3"), unsafe_allow_html=True)
+                    st.markdown(audio_autoplay_html(audio_path), unsafe_allow_html=True)
 
-                    st.audio(f"audio/{current_word}.mp3", format='audio/mp3')
+                    st.audio(audio_path, format='audio/mp3')
                     
                     # 编辑笔记
                     with st.form(key=current_word, clear_on_submit=True):
@@ -359,29 +360,35 @@ else:
                 st.markdown(f"<p style='text-align:center; font-size: 2.5rem;color: #555;font-weight: bold;'>{'；'.join(word_info['meaning'])}</p>",unsafe_allow_html=True)
 
                 if not st.session_state.review:
-                    with st.form(key=current_word, clear_on_submit=True):
-                        user_input = st.text_input("단어를 입력하세요 (请输入单词)：", key=f"input_{current_word}")
-                        submitted = st.form_submit_button("제출 (提交)", use_container_width=True)
+                    ph=st.empty()
+                    with ph.container():
+                        with st.form(key=current_word, clear_on_submit=True):
+                            user_input = st.text_input("단어를 입력하세요 (请输入单词)：", key=f"input_{current_word}")
+                            submitted = st.form_submit_button("제출 (提交)", use_container_width=True)
+                            #st.session_state.audio=audio_autoplay_html(f"audio/{current_word}.mp3")
+                                
 
-                        #聚焦到输入框======================================================================================（待修改）
-
-                        components.html(
-                                        f"""
-                                            <script>      
-                                                var batsn = window.parent.document.querySelector('[aria-label="단어를 입력하세요 (请输入单词)："]');
-                                                batsn.focus();
-                                            </script>
-                                        """,
-                                        height=0
-                                    )
-
-                        #===================================================================================================
+                            #聚焦到输入框======================================================================================（待修改）
+                        
+                        components.html("""
+                                    <script>
+                                    var input_word = window.parent.document.querySelector(
+                                            '[aria-label="단어를 입력하세요 (请输入单词)："]');
+                                    input_word.focus();
+                                    </script>
+                                """, height=0)
+                            #===================================================================================================
 
                     if submitted:
+                        st.markdown(audio_autoplay_html(f"audio/{current_word}.mp3"), unsafe_allow_html=True)
                         if user_input.strip() == current_word.strip():
                             # 正确逻辑
-                            st.markdown(audio_autoplay_html(f"audio/{current_word}.mp3"), unsafe_allow_html=True)
+                            #st.markdown(st.session_state.audio, unsafe_allow_html=True)
                             writequeue.pop(0)
+                            ph.empty()
+                            st.success("정답입니다! (正确!)")
+                            st.balloons()
+                            
                             if st.session_state.renew:#上次拼写错误
                                 writequeue.append(current_word)
                                 st.session_state.renew=False
@@ -394,10 +401,9 @@ else:
                                     data["words"].pop(current_word)
                                 save_data(data)
                             save_data(data)
-                            st.success("정답입니다! (正确!)")
-                            st.balloons()
-                            time.sleep(2)
-                            st.rerun()
+                            #st.markdown(st.session_state.audio, unsafe_allow_html=True)
+                            if st.button("계속(继续)",use_container_width=True):
+                                st.rerun()
                             
                         else:
                             st.session_state.review=True#显示单词
@@ -405,8 +411,8 @@ else:
                             st.rerun()
 
                         
-
-                    st.columns([1,3,1])[1].image("keyboard.jpg")
+                    else:
+                        st.columns([1,3,1])[1].image("keyboard.jpg")
                     
                 else:
                     st.markdown(audio_autoplay_html(f"audio/{current_word}.mp3"), unsafe_allow_html=True)
