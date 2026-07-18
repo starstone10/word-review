@@ -5,7 +5,6 @@ from datetime import datetime, timedelta
 import io
 from gtts import gTTS
 import base64
-import time
 import streamlit.components.v1 as components
 from mutagen.mp3 import MP3
 
@@ -365,10 +364,6 @@ else:
                         with st.form(key=current_word, clear_on_submit=True):
                             user_input = st.text_input("단어를 입력하세요 (请输入单词)：", key=f"input_{current_word}")
                             submitted = st.form_submit_button("제출 (提交)", use_container_width=True)
-                            #st.session_state.audio=audio_autoplay_html(f"audio/{current_word}.mp3")
-                                
-
-                            #聚焦到输入框======================================================================================（待修改）
                         
                         components.html("""
                                     <script>
@@ -377,13 +372,11 @@ else:
                                     input_word.focus();
                                     </script>
                                 """, height=0)
-                            #===================================================================================================
 
                     if submitted:
-                        st.markdown(audio_autoplay_html(f"audio/{current_word}.mp3"), unsafe_allow_html=True)
                         if user_input.strip() == current_word.strip():
                             # 正确逻辑
-                            #st.markdown(st.session_state.audio, unsafe_allow_html=True)
+                            st.markdown(audio_autoplay_html(f"audio/{current_word}.mp3"), unsafe_allow_html=True)
                             writequeue.pop(0)
                             ph.empty()
                             st.success("정답입니다! (正确!)")
@@ -401,9 +394,31 @@ else:
                                     data["words"].pop(current_word)
                                 save_data(data)
                             save_data(data)
-                            #st.markdown(st.session_state.audio, unsafe_allow_html=True)
+
                             if st.button("계속(继续)",use_container_width=True):
                                 st.rerun()
+
+                            components.html(
+                                """
+                                <script>
+                                    const doc = window.parent.document;
+
+                                    doc.addEventListener("keydown", function(event) {
+                                        if (event.key === "Enter") {
+                                            const buttons = doc.querySelectorAll("button");
+
+                                            for (const button of buttons) {
+                                                if (button.innerText.includes("계속(继续)")) {
+                                                    button.click();
+                                                    break;
+                                                }
+                                            }
+                                        }
+                                    });
+                                </script>
+                                """,
+                                height=0
+                            )
                             
                         else:
                             st.session_state.review=True#显示单词
@@ -421,6 +436,28 @@ else:
                         st.session_state.review=False
                         st.session_state.renew=True
                         st.rerun()
+                    
+                    components.html(
+                                """
+                                <script>
+                                    const doc = window.parent.document;
+
+                                    doc.addEventListener("keydown", function(event) {
+                                        if (event.key === "Enter") {
+                                            const buttons = doc.querySelectorAll("button");
+
+                                            for (const button of buttons) {
+                                                if (button.innerText.includes("다시 맞춤법（重新拼写）")) {
+                                                    button.click();
+                                                    break;
+                                                }
+                                            }
+                                        }
+                                    });
+                                </script>
+                                """,
+                                height=0
+                            )
                         
                 
                 if st.button("⬅️ 스펠링 건너뛰기 (跳过拼写)"):
