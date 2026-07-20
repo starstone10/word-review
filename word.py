@@ -7,10 +7,13 @@ from gtts import gTTS
 import base64
 import streamlit.components.v1 as components
 from mutagen.mp3 import MP3
+from concurrent.futures import ThreadPoolExecutor
+import edge_tts
+import asyncio
 
 # ================= 配置与初始化 =================
 DATA_FILE = "korean_vocab.json"
-
+VOICE = "ko-KR-SunHiNeural"
 
 # 默认数据结构
 DEFAULT_DATA = {
@@ -71,8 +74,12 @@ def get_audio(word):
     os.makedirs(audio_dir, exist_ok=True)
     file_path = os.path.join(audio_dir, f"{word}.mp3")
     if not os.path.exists(file_path):
-        tts = gTTS(word, lang='ko')
-        tts.save(file_path)
+        asyncio.run(
+            edge_tts.Communicate(
+                text=word,
+                voice=VOICE
+            ).save(file_path)
+        )
 
 #庆祝小彩蛋
 def congratulation(first_day,today,streak):
@@ -141,6 +148,7 @@ if not st.session_state.in_review_mode:
     uploaded_file = st.sidebar.file_uploader("TXT 파일 업로드(上传TXT文件)", type=["txt"], help="형식: 홀수 줄은 단어, 짝수 줄은 뜻\n（格式：奇数行是单词，偶数行是释义）")
 
     if uploaded_file is not None:
+        new_word_load=[]
         try:
             content = uploaded_file.getvalue().decode("utf-8")
             lines = [line.strip() for line in content.splitlines() if line.strip()]
@@ -158,7 +166,7 @@ if not st.session_state.in_review_mode:
                             "interval": -1
                         }
                         new_count += 1
-                        get_audio(word)
+                        new_word_load.append(word)
                     else:
                         newmeaning=True
                         for j in data["words"][word]["meaning"]:
@@ -168,12 +176,15 @@ if not st.session_state.in_review_mode:
                             data["words"][word]["meaning"].append(meaning)
                             data["words"][word]["next_review"]=None
                             data["words"][word]["interval"]=-1
-            
+
+            with ThreadPoolExecutor(max_workers=5) as executor:
+                executor.map(get_audio, new_word_load)
+
             save_data(data)
             st.sidebar.success(f"성공! {new_count}개의 단어를 추가했습니다.\n（成功！添加了{new_count}个单词。）")
             
         except Exception as e:
-            st.sidebar.error(f"불러오기 실패: {str(e)}")
+            st.sidebar.error(repr(e))
 
 # ================= 页面 1：主页 (Dashboard) =================
 # 获取今日待复习列表
