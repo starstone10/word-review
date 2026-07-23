@@ -50,15 +50,15 @@ def calculate_next_review(word_data,ease):
 
     interval = word_data.get("interval",0)
 
-    if ease<1:
+    if ease==0:#全对
         if interval!=len(plan)-1:
             interval=interval+1
         else:
             data["had_review"]+=1
             save_data(data)
             return False
-    else:
-        interval=max(0,interval-int(ease))
+    elif ease>0.6:#错了两个以上
+        interval=max(0,interval-int(ease/0.6))
         
 
     next_date = now + timedelta(days=plan[interval])
